@@ -19,6 +19,7 @@ var yargs = require('yargs')
   .boolean('h')
   .alias('h', 'help')
   .describe('h', 'show help message')
+  .default('renameImportSource', ()=> (console.log("sup"), '@(.*)/_$1/'), 'use this search/replace regex to transform source of imports')
   .boolean('verbose')
   .describe('verbose', 'show verbose output')
   .default('verbose', false)
@@ -85,9 +86,8 @@ function deexportify(files) {
 }
 
 function renameImportSource(files) {
-  console.log('\nTransforming ' + colors.yellow('require()') + ' to ' +
-    colors.cyan('import') + ' ...');
-  return runCodeshift('rename-imports-codemod', files, ["--renameImportSource=^@(.*)/_$1/"]);
+  console.log('\nTransforming ' + colors.yellow('import source names') + ' ...');
+  return runCodeshift('rename-imports-codemod', files, ["--renameImportSource=" + yargs.argv.renameImportSource]);
 }
 
 Promise.resolve().then(function () {
