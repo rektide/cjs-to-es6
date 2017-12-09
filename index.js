@@ -51,10 +51,11 @@ function findJsFiles(dir) {
   });
 }
 
-function runCodeshift(transformName, files) {
+function runCodeshift(transformFile, files, supplementaryArgs) {
   var cmd = require.resolve("jscodeshift/bin/jscodeshift.sh");
-  var transform = require.resolve('5to6-codemod/transforms/' + transformName);
-  var child = spawn(cmd, ["-t", transform].concat(files));
+  var transform = require.resolve(transformFile);
+  var args = ["-t", transform].concat(supplementaryArgs|| []).concat(files);
+  var child = spawn(cmd, args);
   child.progress(function (childProcess) {
     if (verbose) {
       childProcess.stdout.pipe(process.stdout);
@@ -73,14 +74,20 @@ function runCodeshift(transformName, files) {
 function derequireify(files) {
   console.log('\nTransforming ' + colors.yellow('require()') + ' to ' +
     colors.cyan('import') + ' ...');
-  return runCodeshift('cjs.js', files);
+  return runCodeshift('5to6-codemod/transforms/cjs.js', files);
 }
 
 function deexportify(files) {
   console.log('\nTransforming ' + colors.yellow('module.exports') + '/' +
     colors.red('exports') + ' to ' +
     colors.cyan('export') + ' ...');
-  return runCodeshift('exports.js', files);
+  return runCodeshift('5to6-codemod/transforms/exports.js', files);
+}
+
+function renameImportSource(files) {
+  console.log('\nTransforming ' + colors.yellow('require()') + ' to ' +
+    colors.cyan('import') + ' ...');
+  return runCodeshift('rename-imports-codemod', files, ["--renameImportSource=^@(.*)/_$1/"]);
 }
 
 Promise.resolve().then(function () {
@@ -103,7 +110,9 @@ Promise.resolve().then(function () {
 }).then(function (files) {
   console.log('\nFound ' + colors.cyan(files.length.toString()) + ' files.');
   return derequireify(files).then(function () {
-    return deexportify(files);
+    return deexportify(files).then(function () {
+      return renameImportSource(files);
+    })
   })
 }).catch(function (err) {
   if (err.errno == 'E2BIG') {
